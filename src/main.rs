@@ -1,19 +1,24 @@
-use std::{fs, io::Result, path::{Path, PathBuf}};
+use std::{fs, path::{Path, PathBuf}};
 
 fn main() {
     let path = Path::new("./");
-    get_files(path);
+    let mut out = Vec::new();
+
+    get_files(path, &mut out);
 }
 
-fn get_files(path: &Path) -> Vec<PathBuf> {
+fn get_files(path: &Path, collection: &mut Vec<PathBuf>) {
     let paths = fs::read_dir(path).unwrap();
 
-    let mut out: Vec<PathBuf> = Vec::new();
     for path in paths {
-        out.push(path.unwrap().path());
+        let p = path.unwrap().path();
+        if p.is_dir() {
+            get_files(p.as_path(), collection);
+        }
+        if p.is_file() {
+            collection.push(p);
+        }
     }
-
-    out
 }
 
 // fn get_hash(path: &Path) -> Result<String> {
@@ -55,7 +60,8 @@ mod tests {
         ctx.create_file("foo.txt");
         ctx.create_file("bar.txt");
 
-        let paths = get_files(ctx.path());
+        let mut paths = Vec::new();
+        get_files(ctx.path(), &mut paths);
 
         assert_eq!(paths.len(), 2, "Mismatched folder sizes");
     }
@@ -63,13 +69,16 @@ mod tests {
     #[test]
     fn test_get_files_from_from_folder_recursively() {
         let ctx = TestContext::new("test_dir");
-        ctx.create_file("foo.txt");
-        ctx.create_file("bar.txt");
-        ctx.create_file("inner/baz.txt");
+        let test_files = ["foo.txt", "bar.txt", "inner/baz.txt", "inner/faz.txt", "inner/inner/boo.txt"];
+       
+        for file in test_files {
+            ctx.create_file(file);
+        }
+        
+        let mut paths = Vec::new();
+        get_files(ctx.path(), &mut paths);
 
-        let paths = get_files(ctx.path());
-
-        assert_eq!(paths.len(), 3, "Mismatched folder sizes");
+        assert_eq!(paths.len(), 5, "Mismatched folder sizes");
     }
 
     #[test]
