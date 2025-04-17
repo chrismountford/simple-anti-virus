@@ -1,10 +1,13 @@
 use std::{fs, path::{Path, PathBuf}};
 
+use sha2::{Digest, Sha256};
+
 fn main() {
     let path = Path::new("./");
-    let mut out = Vec::new();
 
-    get_files(path, &mut out);
+    // Mutating this in place will allow further use of this further in the scope of this function
+    let mut files_to_scan = Vec::new();
+    get_files(path, &mut files_to_scan);
 }
 
 fn get_files(path: &Path, collection: &mut Vec<PathBuf>) {
@@ -21,12 +24,23 @@ fn get_files(path: &Path, collection: &mut Vec<PathBuf>) {
     }
 }
 
-// fn get_hash(path: &Path) -> Result<String> {
+fn compute_hash(path: &Path) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    let file_contents = fs::read(path);
 
-// }
+    match file_contents {
+        Ok(contents) => hasher.update(contents),
+        Err(err) => panic!("{err}")
+    }
+
+    let result = hasher.finalize();
+
+    result[..].to_vec()
+}
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
     use tempdir::TempDir;
 
     use super::*;
@@ -83,13 +97,14 @@ mod tests {
 
     #[test]
     fn test_generate_hash_from_file() {
-        // let ctx = TestContext::new("test_dir");
-        // ctx.create_file("foo.txt");
+        let ctx = TestContext::new("test_dir");
+        ctx.create_file("foo.txt");
 
-        // let file_path = ctx.path().join("foo.txt");
+        let file_path = ctx.path().join("foo.txt");
 
-        // let hash = get_hash(file_path.as_path());
+        let hash = compute_hash(file_path.as_path());
 
-        // assert_eq!(hash, "1234", "Mismatched hash of file");
+        let expected = hex!("d1b2a59fbea7e20077af9f91b27e95e865061b270be03ff539ab3b73587882e8");
+        assert_eq!(hash, expected, "Mismatched hash of file");
     }
 }
